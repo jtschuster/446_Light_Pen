@@ -40,17 +40,28 @@ int main()
 			int32_t red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
 			int32_t blue = ((0xFF << vinfo.blue.offset) & color)>> vinfo.blue.offset;
 			int32_t green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
-			if (green == 0xff) {
-				printf("asdf");
-			}
-			if (red == 0xff) {
-				printf("asdf");
-			}
-			if (blue == 0xff) {
-				printf("asdf");
-			}
-			
-			color -= pixel_color(0x01, 0x01, 0x01, &vinfo);
+                        int total = green + blue + red;
+                        int dgreen=0;
+                        int dred=0;
+                        int dblue=0;
+                        if (total > 382) { // half of white
+		    	    if (green <= 0x0f) {
+                                dgreen = -green;
+		    	    } else {
+                                dgreen = -0x0F;
+                            }
+		    	    if (red <= 0x0F) {
+                                dred = -red;
+		    	    } else {
+                                dred = -0x0F;
+                            }
+		    	    if (blue <= 0x0F) {
+                                dblue = -blue;
+		    	    } else {
+                                dblue = -0x0F;
+                            }
+		        }	
+			color -= pixel_color(dred, dblue, dred, &vinfo);
 			*((uint32_t*)(fbp + location)) = color;
 		}
 
