@@ -40,21 +40,22 @@ int main()
     int rows = vinfo.yres / BOX_HEIGHT + !!(vinfo.yres % BOX_HEIGHT);
     int cols = vinfo.xres / BOX_WIDTH + !!(vinfo.xres % BOX_WIDTH);
     // index with [x][y]
-	// msb indicated 
+    // msb indicated
     uint32_t curr_brightness[cols][rows];
-    int column = 0;
-    int row = 0;
-
+    uint32_t column = 0;
+    uint32_t row = 0;
+    uint64_t location;
+    uint32_t color, red, blue, green, total;
     for (x = 0; x < vinfo.xres; x++) {
         column = x / BOX_WIDTH;
         for (y = 0; y < vinfo.yres; y++) {
             row = y / BOX_HEIGHT;
-            unsigned long location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
-            uint32_t color = *((uint32_t*)(fbp + location));
-            uint32_t red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
-            uint32_t blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
-            uint32_t green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
-            unsigned int total = green + blue + red;
+            location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
+            color = *((uint32_t*)(fbp + location));
+            red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
+            blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
+            green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
+            total = green + blue + red;
             curr_brightness[column][row] += total;
             // int dgreen = 0;
             // int dred = 0;
@@ -91,9 +92,53 @@ int main()
         column = x / BOX_WIDTH;
         for (y = 0; y < vinfo.yres; y++) {
             row = y / BOX_HEIGHT;
+            if (curr_brightness[column][row] < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH / 2) {
+                change[column][row] = MIN_CHANGE;
+            } else {
+                change[column][row] = -MIN_CHANGE;
+            }
+        }
+    }
+    uint32_t dred, dgreen, dblue, change;
+    for (x = 0; Fx < vinfo.xres; x++) {
+        column = x / BOX_WIDTH;
+        for (y = 0; y < vinfo.yres; y++) {
+            row = y / BOX_HEIGHT;
+            color = *((uint32_t*)(fbp + location));
+            red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
+            blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
+            green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
+            change = change[column][row];
+            if ((red + change) & 0x100) { // if doing change causes overflow
+                if (change < 0) {
+                    dred = -red;
+                } else {
+                    dred = 0xFF - red;
+                }
+            }
+            if ((green + change) & 0x100) { // if doing change causes overflow
+                if (change < 0) {
+                    dgreen = -green;
+                } else {
+                    dgreen = 0xFF - green;
+                }
+            }
+            if ((blue + change) & 0x100) { // if doing change causes overflow
+                if (change < 0) {
+                    dblue = -blue;
+                } else {
+                    dblue = 0xFF - blue;
+                }
+            }
+            uint32_t dred2 = ((red + change) & 0x100) ? (red * (-1 * (change >> 31))) + ((-1) * (0xFF - red) * !(change >> 31)))
+                : change;
+            if (dred != dred2)
+                printf("yeah that ternary doesn't work");
+                
             color -= pixel_color(dred, dblue, dred, &vinfo);
             *((uint32_t*)(fbp + location)) = color;
         }
     }
+
     return 0;
 }
