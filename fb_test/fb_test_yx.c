@@ -103,10 +103,10 @@ int main()
 //
 //        }
 //    }
-    for (y = 0; y < vinfo.yres; y++) {
-        row = y / BOX_HEIGHT;
         for (x = 0; x < vinfo.xres; x++) {
             column = x / BOX_WIDTH;
+    for (y = 0; y < vinfo.yres; y++) {
+        row = y / BOX_HEIGHT;
             if (curr_brightness[column][row] < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH / 2) {
                 change[column][row] = MIN_CHANGE;
             } else {
@@ -116,10 +116,10 @@ int main()
     }
     uint8_t dred, dgreen, dblue;
     int32_t d;
-    for (x = 0; x < vinfo.xres; x++) {
-        column = x / BOX_WIDTH;
         for (y = 0; y < vinfo.yres; y++) {
             row = y / BOX_HEIGHT;
+    for (x = 0; x < vinfo.xres; x++) {
+        column = x / BOX_WIDTH;
             uint32_t old_location = location;
             location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
             color = *((uint32_t*)(back_buffer + location));

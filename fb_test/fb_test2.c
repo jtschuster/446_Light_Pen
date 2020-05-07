@@ -10,7 +10,7 @@
 
 #define BOX_WIDTH 5
 #define BOX_HEIGHT 5
-#define MIN_CHANGE 0x0a
+#define MIN_CHANGE 0x05
 
 #define GET_RED(pixel, vinfo) ((pixel & (0xFF << vinfo.red.offset)) >> vinfo.red.offset)
 #define GET_GREEN(pixel, vinfo) ((pixel & (0xFF << vinfo.green.offset)) >> vinfo.green.offset)
@@ -88,25 +88,25 @@ int main()
     uint64_t location;
     uint32_t color, red, blue, green, total;
     int32_t change[cols][rows];
-    find_brightness(back_buffer, vinfo, finfo, (uint32_t *)curr_brightness);
-//    for (x = 0; x < vinfo.xres; x++) {
-//        column = x / BOX_WIDTH;
-//        for (y = 0; y < vinfo.yres; y++) {
-//            row = y / BOX_HEIGHT;
-//            location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
-//            color = *((uint32_t*)(back_buffer + location));
-//            red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
-//            blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
-//            green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
-//            total = green + blue + red;
-//            curr_brightness[column][row] += total;
-//
-//        }
-//    }
-    for (y = 0; y < vinfo.yres; y++) {
-        row = y / BOX_HEIGHT;
-        for (x = 0; x < vinfo.xres; x++) {
-            column = x / BOX_WIDTH;
+//    find_brightness(back_buffer, vinfo, finfo, (uint32_t *)curr_brightness);
+    for (x = 0; x < vinfo.xres; x++) {
+        column = x / BOX_WIDTH;
+        for (y = 0; y < vinfo.yres; y++) {
+            row = y / BOX_HEIGHT;
+            location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
+            color = *((uint32_t*)(back_buffer + location));
+            red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
+            blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
+            green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
+            total = green + blue + red;
+            curr_brightness[column][row] += total;
+
+        }
+    }
+    for (x = 0; x < vinfo.xres; x++) {
+        column = x / BOX_WIDTH;
+        for (y = 0; y < vinfo.yres; y++) {
+            row = y / BOX_HEIGHT;
             if (curr_brightness[column][row] < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH / 2) {
                 change[column][row] = MIN_CHANGE;
             } else {
@@ -166,7 +166,7 @@ int main()
         }
     }
     memcpy(fbp, back_buffer, screensize);
-    sleep(3);
+//    sleep(3);
     memcpy(fbp, original, screensize);
     free(original);
     return 0;

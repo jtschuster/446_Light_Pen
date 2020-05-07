@@ -103,10 +103,10 @@ int main()
 //
 //        }
 //    }
-    for (y = 0; y < vinfo.yres; y++) {
-        row = y / BOX_HEIGHT;
         for (x = 0; x < vinfo.xres; x++) {
             column = x / BOX_WIDTH;
+    for (y = 0; y < vinfo.yres; y++) {
+        row = y / BOX_HEIGHT;
             if (curr_brightness[column][row] < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH / 2) {
                 change[column][row] = MIN_CHANGE;
             } else {
