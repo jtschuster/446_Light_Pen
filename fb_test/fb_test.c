@@ -10,7 +10,7 @@
 
 #define BOX_WIDTH 5
 #define BOX_HEIGHT 5
-#define MIN_CHANGE 0x05
+#define MIN_CHANGE 0x0a
 
 #define GET_RED(pixel, vinfo) ((pixel & (0xFF << vinfo.red.offset)) >> vinfo.red.offset)
 #define GET_GREEN(pixel, vinfo) ((pixel & (0xFF << vinfo.green.offset)) >> vinfo.green.offset)
@@ -88,49 +88,21 @@ int main()
     uint64_t location;
     uint32_t color, red, blue, green, total;
     int32_t change[cols][rows];
-    for (x = 0; x < vinfo.xres; x++) {
-        column = x / BOX_WIDTH;
-        for (y = 0; y < vinfo.yres; y++) {
-            row = y / BOX_HEIGHT;
-            location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
-            color = *((uint32_t*)(back_buffer + location));
-            red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
-            blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
-            green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
-            total = green + blue + red;
-            curr_brightness[column][row] += total;
-
-            // int dgreen = 0;
-            // int dred = 0;
-            // int dblue = 0;
-            // if (total > 382)
-            // { // half of white
-            //  if (green <= 0x0f)
-            //  {
-            //          dgreen = -green;
-            //  }
-            //  else
-            //  {
-            //          dgreen = -0x0F;
-            //  }
-            //  if (red <= 0x0F)
-            //  {
-            //          dred = -red;
-            //  }
-            //  else
-            //  {
-            //          dred = -0x0F;
-            //  }
-            //  if (blue <= 0x0F)
-            //  {
-            //          dblue = -blue;
-            //  }
-            //  else
-            //  {
-            //          dblue = -0x0F;
-            //  }
-        }
-    }
+    find_brightness(back_buffer, vinfo, finfo, (uint32_t *)curr_brightness);
+//    for (x = 0; x < vinfo.xres; x++) {
+//        column = x / BOX_WIDTH;
+//        for (y = 0; y < vinfo.yres; y++) {
+//            row = y / BOX_HEIGHT;
+//            location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
+//            color = *((uint32_t*)(back_buffer + location));
+//            red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
+//            blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
+//            green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
+//            total = green + blue + red;
+//            curr_brightness[column][row] += total;
+//
+//        }
+//    }
     for (x = 0; x < vinfo.xres; x++) {
         column = x / BOX_WIDTH;
         for (y = 0; y < vinfo.yres; y++) {
