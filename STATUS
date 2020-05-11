@@ -1,0 +1,11 @@
+Currently, I have explored writing to the framebuffer linux device to change the contents of the screen. Doing this pixel by pixel goes slower than desired, so I plan to remedy this as best as possible by using double buffering.
+Instead of completely overwriting the screen with different light levels, I plan to change the brightness of sections of the screen only slightly from their original state and use the difference in brightness to determine where the photoresistor is placed on the screen. With tuning, hopefully the location can be determined with minimal interference to the screen.
+I tried using a six channel photo sensor that uses I2C, but I2C seems too slow for this, so a simple photoresistor has been ordered and I will test that with direct ADC in the coming week. 
+This week I plan to test changing the light levels and determine the minimum changes in RGB brightness to accurately notice a change on the screen. Using that information I hope to write an algorithm to efficiently determine the location of the sensor on the screen without affecting the users view of the screen too much.
+
+TODO:
+	Min change in brightness (at different RGB levels)
+	Algorithm for changing screen 
+		Should I change light levels of large sections at a time and get smaller, or begin changing smaller sections?
+		Do I need to account for if the pen is on the edge of the different sections?
+		How can I best eliminate the effect of ambient light? Is covering the sensor enough, or do I need to make software accomodations for it?
