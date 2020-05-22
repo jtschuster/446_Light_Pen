@@ -10,7 +10,7 @@
 
 #define BOX_WIDTH 5
 #define BOX_HEIGHT 5
-#define MIN_CHANGE 0x05
+#define MIN_CHANGE 0x0a
 
 #define GET_RED(pixel, vinfo) ((pixel & (0xFF << vinfo.red.offset)) >> vinfo.red.offset)
 #define GET_GREEN(pixel, vinfo) ((pixel & (0xFF << vinfo.green.offset)) >> vinfo.green.offset)
@@ -166,7 +166,7 @@ int main()
         }
     }
     memcpy(fbp, back_buffer, screensize);
-//    sleep(3);
+    sleep(3);
     memcpy(fbp, original, screensize);
     free(original);
     return 0;

@@ -9,3 +9,7 @@ TODO:
 		Should I change light levels of large sections at a time and get smaller, or begin changing smaller sections?
 		Do I need to account for if the pen is on the edge of the different sections?
 		How can I best eliminate the effect of ambient light? Is covering the sensor enough, or do I need to make software accomodations for it?
+
+getting power from the power from the msp430 is too noisy for the supply unless I maybe low pass filter the power supply.
+low pass filtering seems to work okay for filtering the signal back, but using a capacitor straight to ground is probably better. 
+
