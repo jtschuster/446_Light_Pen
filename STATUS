@@ -13,3 +13,5 @@ TODO:
 getting power from the power from the msp430 is too noisy for the supply unless I maybe low pass filter the power supply.
 low pass filtering seems to work okay for filtering the signal back, but using a capacitor straight to ground is probably better. 
 
+
+Optimized array access to be sequential. Can detect differences in low-levels, but not in high levels. 

@@ -84,6 +84,7 @@ int main()
     // index with [x][y]
     // msb indicated
     uint32_t curr_brightness[rows][cols];
+    memset((void*)curr_brightness, 0, rows*cols*4);
     uint32_t column = 0;
     uint32_t row = 0;
     uint64_t location;
@@ -104,14 +105,14 @@ int main()
 //
 //        }
 //    }
-    for (y = 0; y < vinfo.yres; y++) {
-        row = y / BOX_HEIGHT;
-        for (x = 0; x < vinfo.xres; x++) {
-            column = x / BOX_WIDTH;
+    for (row = 0; row < rows; row++) {
+        for (column = 0; column < cols; column++) {
             if (curr_brightness[row][column] < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH / 2) {
                 change[row][column] = MIN_CHANGE;
+            } else if (curr_brightness[row][column] < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH * 3/4){
+                change[row][column] = -2*MIN_CHANGE;
             } else {
-                change[row][column] = -MIN_CHANGE;
+                change[row][column] = -2*MIN_CHANGE;
             }
         }
     }
