@@ -20,7 +20,7 @@
 // #define TIME
 // #define SLOW
 
-#define ITERATIONS 10
+#define ITERATIONS 11
 uint32_t iter = 0;
 uint32_t diffs[ITERATIONS] = {0};
 

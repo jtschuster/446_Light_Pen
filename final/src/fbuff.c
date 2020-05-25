@@ -165,15 +165,13 @@ uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t iteratio
     col_split = col_split < 2 ? 2 : col_split;
     row_split = row_split < 2 ? 2 : row_split;
     
-    // only change rows or only change cols
-
     for (row = 0; row < rows; row++) {
-        row_bit = (iteration & 1) ? ((row / row_split) & 1) : 1;
+        row_bit = (row / row_split) & 1;
         for (column = 0; column < cols; column++) {
             ch = (change + row*cols + column);
             lch = (last_change + row*cols + column);
-            col_bit = (iteration & 1) ? ((column / col_split) & 1) : 1;
-            newch = (row_bit & col_bit) * (-(*lch));
+            col_bit = ((column / col_split) & 1);
+            newch = (row_bit & !(iteration & 1) | col_bit & iteration & 1) * (-(*lch));
             *ch = newch;
             *lch = newch ? newch : (*lch);
             // ch++;
