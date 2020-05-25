@@ -7,6 +7,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <wiringPi.h>
 
 #define BOX_WIDTH 5
 #define BOX_HEIGHT 5
@@ -80,7 +81,8 @@ int main()
     // dividend plus 1 if remainder
     int rows = vinfo.yres / BOX_HEIGHT + !!(vinfo.yres % BOX_HEIGHT);
     int cols = vinfo.xres / BOX_WIDTH + !!(vinfo.xres % BOX_WIDTH);
-
+ 
+ 
     // index with [x][y]
     // msb indicated
     uint32_t curr_brightness[rows][cols];
@@ -167,8 +169,13 @@ int main()
             // *((uint32_t*)(back_buffer + location)) += pixel_color(dred, dgreen, dblue, &vinfo);
         }
     }
+    if (wiringPiSetup() == -1)
+        printf("couldn't init wiringpi");
+    pinMode(24, OUTPUT);
+    digitalWrite(24, HIGH);
     memcpy(fbp, back_buffer, screensize);
     sleep(3);
+    digitalWrite(24, LOW);
     memcpy(fbp, original, screensize);
     free(original);
     return 0;
