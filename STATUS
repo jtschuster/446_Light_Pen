@@ -15,3 +15,9 @@ low pass filtering seems to work okay for filtering the signal back, but using a
 
 
 Optimized array access to be sequential. Can detect differences in low-levels, but not in high levels. 
+
+
+I now have the photo cell signal going through an MSP430 microcontroller which does an ADC conversion and tracks two time buffered exponential moving averages of the signal. If the signal changes, the MSP430 will send a signal to the Raspberry Pi that runs the screen.
+The Pi changes the brightness of half of the screen and leaves the other half, then changes every fourth of the screen, then every eighth and so on. An interrupt handler marks during which screen a signal is sent, and that information is used to determine which half, fourth, eighth, etc, the sensor is located within the screen. 
+It can track the location of the sensor up to within about 20 pixels most of the time. However, this takes about 11 frames, and as the sizes of the parts of the screen that change get smaller, the cell is more likely to be on a border between pixels that change and pixels that don't, and accuracy goes down. 
+This week I plan to look into how the signal changes when the sensor is over a border and try to find a way to deal with when that happens or try to avoid it. I also plan to speed up the rendering by threading the back buffer rendering and looking to find where else I can make it more efficient.
