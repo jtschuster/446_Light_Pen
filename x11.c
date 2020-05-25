@@ -149,7 +149,6 @@ int main(void)
         } 
         xoffset += width  * (tall ? placement[k] / 4 : placement[k] % 4);
         yoffset += height * (tall ? placement[k] % 4 : placement[k] / 4);
-
         // exit on key press
         k++;
     }

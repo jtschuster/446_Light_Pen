@@ -9,7 +9,6 @@ TODO:
 		Should I change light levels of large sections at a time and get smaller, or begin changing smaller sections?
 		Do I need to account for if the pen is on the edge of the different sections?
 		How can I best eliminate the effect of ambient light? Is covering the sensor enough, or do I need to make software accomodations for it?
-
 5/11
 Currently, I have code to change the brightness of the screen using a double buffer, which speeds up the time immensely. The program currently determines the average brightness of 5 x 5 boxes on the screen and will increase or decrease the RGB values of the pixels depending on if the box is above or below half maximum brightness. I also have a photo cell to determine the brightness levels of the screen. However, ambient light is much brighter than the rest of the screen, so the sensor must be closed off the the ambient light. I plan to place a stylus head with a hole in it on top of the photo cell as a makeshift cover to test how it works. The differences in brightness will also be very low, so I plan to use amplifying or differentiating op amps or some combination of both to make reading light levels of the screen more accurate and precise.
 This week I will continue to test different methods of filtering and amplifying the signal from the photo cell to determine what change in light levels I need and what combination of op amps works best. Once that is tested, I will also begin testing placing a cursor using this.
@@ -19,3 +18,15 @@ TODO:
 		op amp alone
 		differentiating op amp alone
 		differentiating op amp with op amp
+
+Getting power from the power from the msp430 is too noisy for the supply unless I maybe low pass filter the power supply.
+low pass filtering seems to work okay for filtering the signal back, but using a capacitor straight to ground is probably better. 
+
+
+Optimized array access to be sequential. Can detect differences in low-levels, but not in high levels. 
+
+
+I now have the photo cell signal going through an MSP430 microcontroller which does an ADC conversion and tracks two time buffered exponential moving averages of the signal. If the signal changes, the MSP430 will send a signal to the Raspberry Pi that runs the screen.
+The Pi changes the brightness of half of the screen and leaves the other half, then changes every fourth of the screen, then every eighth and so on. An interrupt handler marks during which screen a signal is sent, and that information is used to determine which half, fourth, eighth, etc, the sensor is located within the screen. 
+It can track the location of the sensor up to within about 20 pixels most of the time. However, this takes about 11 frames, and as the sizes of the parts of the screen that change get smaller, the cell is more likely to be on a border between pixels that change and pixels that don't, and accuracy goes down. 
+This week I plan to look into how the signal changes when the sensor is over a border and try to find a way to deal with when that happens or try to avoid it. I also plan to speed up the rendering by threading the back buffer rendering and looking to find where else I can make it more efficient.
