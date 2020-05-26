@@ -79,10 +79,13 @@ int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev,uint32_t* curr_brigh
     uint32_t cols = fbuff_dev->cols;
     for (row = 0; row < rows; row++) {
         for (column = 0; column < cols; column++) {
-            if (*(curr_brightness + row*cols + column) < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH / 2) {
+            if (*(curr_brightness + row*cols + column) < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH / 8) {
+                *(change + row*cols + column) = 2*MIN_CHANGE;
+            }
+            else if (*(curr_brightness + row*cols + column) < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH / 2) {
                 *(change + row*cols + column) = MIN_CHANGE;
-            } else if (*(curr_brightness + row*cols + column) < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH * 3/4){
-                *(change + row*cols + column) = -2*MIN_CHANGE;
+            } else if (*(curr_brightness + row*cols + column) < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH * 2/3){
+                *(change + row*cols + column) = MIN_CHANGE;
             } else {
                 *(change + row*cols + column) = -2*MIN_CHANGE;
             }
@@ -180,4 +183,34 @@ uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t iteratio
     }
     return 0;
 }
+    
 
+uint32_t fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
+    uint32_t row=0, column=0;
+    uint32_t rows = fbuff_bb->fbuff_dev->rows;
+    uint32_t cols = fbuff_bb->fbuff_dev->cols;
+    uint32_t col_split = 0;
+    uint32_t row_split = 0;
+    uint32_t box_row, box_col;
+    int32_t* change=fbuff_bb->change_vals;
+    int32_t* this_change = (int32_t*) malloc(rows*cols*sizeof(int32_t));
+    int32_t iteration = fbuff_bb->iteration++;
+
+    col_split = cols / (1 << ((iteration >> 1) + (iteration &1)));
+    row_split = iteration == 1 ? rows : rows / (1 << (iteration >>1));
+    col_split = col_split < 2 ? 2 : col_split;
+    row_split = row_split < 2 ? 2 : row_split;
+    int32_t do_i_change = 0;
+    for (row = 0; row < rows; row++) {
+        box_row = (row / row_split);
+        for (column = 0; column < cols; column++) {
+            box_col = column/col_split;
+            do_i_change = (__builtin_popcount(box_col) ^ __builtin_popcount(box_row)) & 1;
+            *(this_change+row*cols + column) = do_i_change * (*(change + row*cols + column));
+        }
+    }
+    // call the update_buffer to fill the buffer
+    update_buffer(fbuff_bb->fbuff_dev, this_change, fbuff_bb->back_buffer);
+    free((void*)this_change);
+    return 0;
+}

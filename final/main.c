@@ -17,12 +17,14 @@
 
 #include "include/fbuff.h"
 
-// #define TIME
+#define TIME
 // #define SLOW
 
-#define ITERATIONS 11
+#define ITERATIONS 15
 uint32_t iter = 0;
 uint32_t diffs[ITERATIONS] = {0};
+uint8_t* back_buffers[ITERATIONS] = {NULL};
+
 
 void signal_callback() {
     printf("Change detected\n");
@@ -50,7 +52,7 @@ int main() {
     uint8_t* original = malloc(screensize);
     memcpy(original, fbp, screensize);
     uint8_t* back_buffer = malloc(screensize);
-    memcpy(back_buffer, fbp, screensize);
+    memcpy(back_buffer, original, screensize);
 
     int rows = fbuff_dev->rows;
     int cols = fbuff_dev->cols;
@@ -62,6 +64,7 @@ int main() {
     uint32_t row = 0;
     uint64_t location;
     uint32_t color, red, blue, green, total;
+    int32_t first_change[rows][cols];
     int32_t change[rows][cols];
     int32_t last_change[rows][cols];
      
@@ -79,6 +82,7 @@ int main() {
 
     find_brightness_changes(fbuff_dev, (uint32_t*)curr_brightness, (uint32_t*)change);
     memcpy((void*)last_change, (void*)change, rows*cols*4);
+    memcpy((void*)first_change, (void*)change, rows*cols*4);
 
 #ifdef TIME
     end = clock();
@@ -101,8 +105,10 @@ int main() {
 
     wiringPiISR(29, INT_EDGE_RISING, (void*)&signal_callback);
 
+    digitalWrite(24, HIGH);
     memcpy(fbp, back_buffer, screensize);
-    
+    digitalWrite(24, LOW);
+
 #ifdef TIME
     end = clock();
     double time_spent_write_fb = (double)(end - begin) / CLOCKS_PER_SEC;
@@ -111,13 +117,21 @@ int main() {
 #ifdef SLOW
     sleep(1);
 #endif
+    fbuff_back_buffer_info_t* bbx = malloc(sizeof(fbuff_back_buffer_info_t));
+    bbx->back_buffer = back_buffer;
+    bbx->fbuff_dev = fbuff_dev;
+    bbx->iteration = iter;
+    bbx->change_vals = (int32_t*)(&first_change);
 
     for ( ; iter < ITERATIONS; ) {
         
         printf("next\n");
-        update_brightness_changes(fbuff_dev, iter, (int32_t*)change, (int32_t*)last_change );
-        update_buffer(fbuff_dev, (int32_t*)change, back_buffer);
+        // update_brightness_changes(fbuff_dev, iter, (int32_t*)change, (int32_t*)last_change );
+        // update_buffer(fbuff_dev, (int32_t*)change, back_buffer);
+        memcpy(back_buffer, original, screensize);
+        fill_back_buffer(bbx);
         iter++;
+        bbx->iteration++;
         digitalWrite(24, HIGH);
         memcpy(fbp, back_buffer, screensize);
         digitalWrite(24, LOW);
@@ -125,6 +139,7 @@ int main() {
         sleep(1);
 #endif
     }
+    free((void*) bbx);
     sleep(1);
     int32_t cursor_x = 0;
     int32_t cursor_y = 0;

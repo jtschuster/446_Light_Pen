@@ -19,6 +19,14 @@ typedef struct fbuff_dev_info {
     uint32_t cols;
 } fbuff_dev_info_t;
 
+typedef struct fbuff_back_buffer_info{
+    fbuff_dev_info_t* fbuff_dev;
+    uint8_t* back_buffer;
+    int32_t iteration;
+    int32_t* change_vals;
+    // The argument to the thread that has all the info to make a back_buffer
+} fbuff_back_buffer_info_t;
+
 fbuff_dev_info_t* fbuff_init();
 
 uint32_t fbuff_deinit(fbuff_dev_info_t* fbuff_dev_info);
@@ -34,3 +42,5 @@ int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev,uint32_t* curr_brigh
 uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* buffer);
 
 uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t last_rx, int32_t* change, int32_t* last_change);
+
+uint32_t fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb);
