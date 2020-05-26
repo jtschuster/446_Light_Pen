@@ -206,7 +206,7 @@ uint32_t fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
         for (column = 0; column < cols; column++) {
             box_col = column/col_split;
             do_i_change = (__builtin_popcount(box_col) ^ __builtin_popcount(box_row)) & 1;
-            *(this_change+row*cols + column) = do_i_change * (*(change + row*cols + column));
+            *(this_change + row*cols + column) = do_i_change * (*(change + row*cols + column));
         }
     }
     // call the update_buffer to fill the buffer
