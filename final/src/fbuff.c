@@ -31,6 +31,7 @@ fbuff_dev_info_t* fbuff_init() {
 
 uint32_t fbuff_deinit(fbuff_dev_info_t* fbuff_dev_info) {
     free(fbuff_dev_info);
+    return 0;
 }
 
 inline uint32_t pixel_color(uint8_t r, uint8_t g, uint8_t b, struct fb_var_screeninfo* vinfo)
@@ -52,7 +53,6 @@ int32_t find_brightness(fbuff_dev_info_t* fbuff_dev, uint32_t* brightness_array,
     struct fb_var_screeninfo vinfo = fbuff_dev->vinfo;
     struct fb_fix_screeninfo finfo = fbuff_dev->finfo;
     uint8_t* fbp = back_buffer ? back_buffer : fbuff_dev->fbp;
-    int rows = fbuff_dev->rows;
     int cols = fbuff_dev->cols;
 
     int red, green, blue, total, color, row, column, x, y;
@@ -96,14 +96,15 @@ int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev,uint32_t* curr_brigh
 
 uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* buffer) {
     uint32_t row=0, column=0;
-    uint32_t rows = fbuff_dev->rows;
+    // uint32_t rows = fbuff_dev->rows;
     uint32_t cols = fbuff_dev->cols;
     struct fb_var_screeninfo vinfo = fbuff_dev->vinfo;
     struct fb_fix_screeninfo finfo = fbuff_dev->finfo;
     uint8_t dred, dgreen, dblue;
     int32_t d, y, x;
-    uint32_t color, red, blue, green, total;
+    uint32_t color, red, blue, green;
     uint64_t location = 0;
+
     for (y = 0; y < vinfo.yres; y++) {
         row = y / BOX_HEIGHT;
         for (x = 0; x < vinfo.xres; x++) {
@@ -146,6 +147,7 @@ uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* bu
                 ((uint32_t*)(buffer + location)), vinfo);
         }
     }
+    return 0;
 }
 
 
@@ -174,7 +176,7 @@ uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t iteratio
             ch = (change + row*cols + column);
             lch = (last_change + row*cols + column);
             col_bit = ((column / col_split) & 1);
-            newch = (row_bit & !(iteration & 1) | col_bit & iteration & 1) * (-(*lch));
+            newch = ((row_bit & !(iteration & 1)) | (col_bit & iteration & 1)) * (-(*lch));
             *ch = newch;
             *lch = newch ? newch : (*lch);
             // ch++;
@@ -185,7 +187,8 @@ uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t iteratio
 }
     
 
-uint32_t fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
+void* fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
+    // fbuff_back_buffer_info_t* fbuff_bb = (fbuff_back_buffer_info_t*)fbuff_bb_v;
     uint32_t row=0, column=0;
     uint32_t rows = fbuff_bb->fbuff_dev->rows;
     uint32_t cols = fbuff_bb->fbuff_dev->cols;
@@ -194,7 +197,7 @@ uint32_t fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
     uint32_t box_row, box_col;
     int32_t* change=fbuff_bb->change_vals;
     int32_t* this_change = (int32_t*) malloc(rows*cols*sizeof(int32_t));
-    int32_t iteration = fbuff_bb->iteration;
+    int32_t iteration = fbuff_bb->iteration + 1;
 
     col_split = cols / (1 << ((iteration >> 1) + (iteration &1)));
     row_split = iteration == 1 ? rows : rows / (1 << (iteration >>1));
@@ -210,7 +213,8 @@ uint32_t fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
         }
     }
     // call the update_buffer to fill the buffer
+    memcpy(fbuff_bb->back_buffer, fbuff_bb->original, fbuff_bb->fbuff_dev->screensize);
     update_buffer(fbuff_bb->fbuff_dev, this_change, fbuff_bb->back_buffer);
     free((void*)this_change);
-    return 0;
+    return NULL;
 }

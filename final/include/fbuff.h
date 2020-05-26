@@ -22,8 +22,9 @@ typedef struct fbuff_dev_info {
 typedef struct fbuff_back_buffer_info{
     fbuff_dev_info_t* fbuff_dev;
     uint8_t* back_buffer;
-    int32_t iteration;
+    const uint8_t* original;
     int32_t* change_vals;
+    int32_t iteration;
     // The argument to the thread that has all the info to make a back_buffer
 } fbuff_back_buffer_info_t;
 
@@ -43,4 +44,5 @@ uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* bu
 
 uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t last_rx, int32_t* change, int32_t* last_change);
 
-uint32_t fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb);
+// fbuff_bb should be of type  fbuff_back_buffer_info_t*
+void* fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb);
