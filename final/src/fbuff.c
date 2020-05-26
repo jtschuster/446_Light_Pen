@@ -194,7 +194,7 @@ uint32_t fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
     uint32_t box_row, box_col;
     int32_t* change=fbuff_bb->change_vals;
     int32_t* this_change = (int32_t*) malloc(rows*cols*sizeof(int32_t));
-    int32_t iteration = fbuff_bb->iteration++;
+    int32_t iteration = fbuff_bb->iteration;
 
     col_split = cols / (1 << ((iteration >> 1) + (iteration &1)));
     row_split = iteration == 1 ? rows : rows / (1 << (iteration >>1));
@@ -205,7 +205,7 @@ uint32_t fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
         box_row = (row / row_split);
         for (column = 0; column < cols; column++) {
             box_col = column/col_split;
-            do_i_change = (__builtin_popcount(box_col) ^ __builtin_popcount(box_row)) & 1;
+            do_i_change = !((__builtin_popcount(box_col) ^ __builtin_popcount(box_row)) & 1);
             *(this_change + row*cols + column) = do_i_change * (*(change + row*cols + column));
         }
     }

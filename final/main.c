@@ -120,7 +120,7 @@ int main() {
     fbuff_back_buffer_info_t* bbx = malloc(sizeof(fbuff_back_buffer_info_t));
     bbx->back_buffer = back_buffer;
     bbx->fbuff_dev = fbuff_dev;
-    bbx->iteration = ++iter;
+    bbx->iteration = iter;
     bbx->change_vals = (int32_t*)(&first_change);
 
     for ( ; iter < ITERATIONS; ) {
