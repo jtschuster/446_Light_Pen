@@ -20,6 +20,7 @@
 
 #define TIME
 // #define SLOW
+#define FRAME_DELAY 0.100
 
 #define ITERATIONS 15 // gotta be odd number
 uint32_t iter = 0;
@@ -137,18 +138,23 @@ int main() {
     // bbx->fbuff_dev = fbuff_dev;
     // bbx->iteration = iter;
     // bbx->change_vals = (int32_t*)(&first_change);
+    double delay = 0.0;
+    begin = 0;
     for ( ; iter < ITERATIONS; iter++) {
         
         printf("next\n");
-        // update_brightness_changes(fbuff_dev, iter, (int32_t*)change, (int32_t*)last_change );
-        // update_buffer(fbuff_dev, (int32_t*)change, back_buffer);
-        // memcpy(back_buffer, original, screensize);
-        // fill_back_buffer(bb[iter]);
-        // iter++;
-        if (iter < ITERATIONS-1)
+
+        if (iter < ITERATIONS-1) {
             pthread_create(threads+iter+1, NULL, (void*)&fill_back_buffer, bb[iter+1]);
-        // pthread_setschedprio(threads[it], 0);
+            pthread_setschedprio(threads[iter], 8);
+        }
         pthread_join(threads[iter], NULL);
+        do {
+            delay = (double)(clock() - begin) / CLOCKS_PER_SEC;
+        } while (delay < FRAME_DELAY);
+        begin = clock();
+        printf("Did we get stalled by the thread? %f\n", delay);
+
         digitalWrite(24, HIGH);
         memcpy(fbp, bb[iter]->back_buffer, screensize);
         digitalWrite(24, LOW);
@@ -156,7 +162,7 @@ int main() {
         sleep(1);
 #endif
     }
-    sleep(1);
+    while (clock()-begin < 0.030);
     int32_t cursor_x = 0;
     int32_t cursor_y = 0;
     for (int j = 1; j < ITERATIONS; j+=2) {

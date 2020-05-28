@@ -39,6 +39,13 @@ inline uint32_t pixel_color(uint8_t r, uint8_t g, uint8_t b, struct fb_var_scree
     return (r << vinfo->red.offset) | (g << vinfo->green.offset) | (b << vinfo->blue.offset);
 }
 
+inline void copy_and_change_pixel(int32_t dr, int32_t dg, int32_t db, uint32_t* pixel_src, uint32_t* pixel_dest, struct fb_var_screeninfo vinfo) {
+    int32_t red = GET_RED(*pixel_src, vinfo) + dr;
+    int32_t blue = GET_BLUE(*pixel_src, vinfo) + db;
+    int32_t green = GET_GREEN(*pixel_src, vinfo) + dg;
+    *pixel_dest = MAKE_RED(red, vinfo) | MAKE_GREEN(green, vinfo) | MAKE_BLUE(blue, vinfo);
+}
+
 inline uint32_t change_pixel(int32_t dr, int32_t dg, int32_t db, uint32_t* pixel, struct fb_var_screeninfo vinfo)
 {
     int32_t red = GET_RED(*pixel, vinfo) + dr;
@@ -150,6 +157,62 @@ uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* bu
     return 0;
 }
 
+uint32_t update_buffer_thread(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* buffer, const uint8_t* original) {
+    uint32_t row=0, column=0;
+    // uint32_t rows = fbuff_dev->rows;
+    uint32_t cols = fbuff_dev->cols;
+    struct fb_var_screeninfo vinfo = fbuff_dev->vinfo;
+    struct fb_fix_screeninfo finfo = fbuff_dev->finfo;
+    uint8_t dred, dgreen, dblue;
+    int32_t d, y, x;
+    uint32_t color, red, blue, green;
+    uint64_t location = 0;
+
+    for (y = 0; y < vinfo.yres; y++) {
+        row = y / BOX_HEIGHT;
+        for (x = 0; x < vinfo.xres; x++) {
+            column = x / BOX_WIDTH;
+//            uint32_t old_location = location;
+            location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
+            color = *((uint32_t*)(original + location));
+            red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
+            blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
+            green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
+            d = *(change + row*cols + column);
+            if ((red + d) & 0x100) { // if doing change causes overflow
+                if (d < 0) {
+                    dred = -red;
+                } else {
+                    dred = 0xFF - red;
+                }
+            } else {
+                dred = d;
+            }
+            if ((green + d) & 0x100) { // if doing change causes overflow
+                if (d < 0) {
+                    dgreen = -green;
+                } else {
+                    dgreen = 0xFF - green;
+                }
+            } else {
+                dgreen = d;
+            }
+            if ((blue + d) & 0x100) { // if doing change causes overflow
+                if (d < 0) {
+                    dblue = -blue;
+                } else {
+                    dblue = 0xFF - blue;
+                }
+            } else {
+                dblue = d;
+            }
+            copy_and_change_pixel(dred, dgreen, dblue,
+                ((uint32_t*)(original + location)), ((uint32_t*)(buffer + location)), vinfo);
+        }
+    }
+    return 0;
+}
+
 
 //change all every time to be able to change while reading. 
 //  eventually multithread it
@@ -208,13 +271,13 @@ void* fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
         box_row = (row / row_split);
         for (column = 0; column < cols; column++) {
             box_col = column/col_split;
-            do_i_change = !((__builtin_popcount(box_col) ^ __builtin_popcount(box_row)) & 1);
+            do_i_change = ((__builtin_popcount(box_col) ^ __builtin_popcount(box_row)) & 1);
             *(this_change + row*cols + column) = do_i_change * (*(change + row*cols + column));
         }
     }
     // call the update_buffer to fill the buffer
-    memcpy(fbuff_bb->back_buffer, fbuff_bb->original, fbuff_bb->fbuff_dev->screensize);
-    update_buffer(fbuff_bb->fbuff_dev, this_change, fbuff_bb->back_buffer);
+    // memcpy(fbuff_bb->back_buffer, fbuff_bb->original, fbuff_bb->fbuff_dev->screensize);
+    update_buffer_thread(fbuff_bb->fbuff_dev, this_change, fbuff_bb->back_buffer, fbuff_bb->original);
     free((void*)this_change);
     printf("iter %d done\n", iteration);
     return NULL;
