@@ -93,7 +93,7 @@ int main() {
 
     for (it=0; it < ITERATIONS; it++) {
         if(pthread_create(threads+it, NULL, (void*)&fill_back_buffer, bb[it])) {
-            pthread_setschedprio(threads[it], ITERATIONS-it);
+            pthread_setschedprio(threads[it], 0);
         }
     }
 
