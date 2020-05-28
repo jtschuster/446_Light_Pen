@@ -47,7 +47,7 @@ int main() {
     fbuff_dev_info_t* fbuff_dev = fbuff_init();
     const long screensize = fbuff_dev->screensize;
     uint8_t* fbp = fbuff_dev->fbp;
-    uint8_t* orig_tmp;
+    // uint8_t* orig_tmp;
     uint8_t* original = malloc(screensize);
     memcpy(original, fbp, screensize);
     // original = orig_tmp;
@@ -91,11 +91,13 @@ int main() {
     // memcpy((void*)last_change, (void*)change, rows*cols*4);
     memcpy((void*)first_change, (void*)change, rows*cols*4);
 
-    for (it=0; it < ITERATIONS; it++) {
-        if(pthread_create(threads+it, NULL, (void*)&fill_back_buffer, bb[it])) {
-            pthread_setschedprio(threads[it], 0);
-        }
-    }
+    pthread_create(threads, NULL, (void*)&fill_back_buffer, bb[0]);
+    // pthread_setschedprio(threads[it], 0);
+    // for (it=0; it < ITERATIONS; it++) {
+    //     if(pthread_create(threads+it, NULL, (void*)&fill_back_buffer, bb[it])) {
+    //         pthread_setschedprio(threads[it], (ITERATIONS - it) / (ITERATIONS / 4));
+    //     }
+    // }
 
 #ifdef TIME
     end = clock();
@@ -143,6 +145,9 @@ int main() {
         // memcpy(back_buffer, original, screensize);
         // fill_back_buffer(bb[iter]);
         // iter++;
+        if (iter < ITERATIONS-1)
+            pthread_create(threads+iter+1, NULL, (void*)&fill_back_buffer, bb[iter+1]);
+        // pthread_setschedprio(threads[it], 0);
         pthread_join(threads[iter], NULL);
         digitalWrite(24, HIGH);
         memcpy(fbp, bb[iter]->back_buffer, screensize);

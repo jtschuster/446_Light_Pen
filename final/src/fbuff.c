@@ -216,5 +216,6 @@ void* fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
     memcpy(fbuff_bb->back_buffer, fbuff_bb->original, fbuff_bb->fbuff_dev->screensize);
     update_buffer(fbuff_bb->fbuff_dev, this_change, fbuff_bb->back_buffer);
     free((void*)this_change);
+    printf("iter %d done\n", iteration);
     return NULL;
 }
