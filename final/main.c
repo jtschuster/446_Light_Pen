@@ -20,7 +20,7 @@
 
 #define TIME
 // #define SLOW
-#define FRAME_DELAY 0.100
+#define FRAME_DELAY 0.0900
 
 #define ITERATIONS 15 // gotta be odd number
 uint32_t iter = 0;
