@@ -10,23 +10,32 @@
 #define MAKE_GREEN(value, vinfo) ((value & 0xFF) << vinfo.green.offset)
 #define MAKE_BLUE(value, vinfo) ((value & 0xFF) << vinfo.blue.offset)
 
+#define FBUFF_OFFSET(fbuff_dev, x, y) ((x + fbuff_dev->vinfo.xoffset) * (fbuff_dev->vinfo.bits_per_pixel / 8) + (y + fbuff_dev->vinfo.yoffset) * fbuff_dev->finfo.line_length)
+
+//pointer to base of back buffer
+#define INDEX_BB(fbuff_bb, index) (*((uint8_t**)(fbuff_bb->bb_array + index)))
+
+
 typedef struct fbuff_dev_info {
     struct fb_fix_screeninfo finfo;
     struct fb_var_screeninfo vinfo;
+    uint8_t* fbp;           // The fb_dev base pointer
+    uint8_t* original;      // The original frame buffer contents
+    uint8_t* change_buffer;
+    uint8_t** bb_array;   // an pointer to an array of back_buffers to be indexed
+    // int32_t* box_changes;
+    // uint8_t* pixel_changes;
     long screensize;
-    uint8_t* fbp;
-    uint32_t rows;
-    uint32_t cols;
+    uint32_t rows;          // number of boxes along the vertical axis of the screen
+    uint32_t cols;          // number of boxes along the horizontal axis of the screen
+    uint32_t num_bb;        // number of back buffers. AKA ITERATIONS
 } fbuff_dev_info_t;
 
-typedef struct fbuff_back_buffer_info{
-    fbuff_dev_info_t* fbuff_dev;
-    uint8_t* back_buffer;
-    const uint8_t* original;
-    int32_t* change_vals;
-    int32_t iteration;
-    // The argument to the thread that has all the info to make a back_buffer
-} fbuff_back_buffer_info_t;
+
+// typedef struct fbuff_bb {
+//     uint8_t* back_buffer;   // pointer to the back buffer
+//     int32_t* change_vals;   // pointer to the change values for each box on the screen 
+// } fbuff_bb_t;
 
 fbuff_dev_info_t* fbuff_init();
 
@@ -42,7 +51,7 @@ int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev,uint32_t* curr_brigh
 
 uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* buffer);
 
-uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t last_rx, int32_t* change, int32_t* last_change);
+// uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t last_rx, int32_t* change, int32_t* last_change);
 
 // fbuff_bb should be of type  fbuff_back_buffer_info_t*
-void* fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb);
+void* fill_back_buffer(fbuff_dev_info_t* fbuff_dev, int32_t iteration);

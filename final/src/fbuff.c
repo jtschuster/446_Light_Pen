@@ -8,13 +8,19 @@
 #include <sys/mman.h>
 #include "../include/fbuff.h"
 
+#define FILL_BY_BOX
+
+#ifndef FILL_BY_BOX
+#define FILL_BY_PIXEL
+#endif
 
 
+void find_change_values(fbuff_dev_info_t* fbuff_dev);
 
-fbuff_dev_info_t* fbuff_init() {
+fbuff_dev_info_t* fbuff_init(uint32_t iterations) {
     fbuff_dev_info_t* fbuff_dev = malloc(sizeof(fbuff_dev_info_t));
     int fb_fd = open("/dev/fb0", O_RDWR);
-
+    fbuff_dev->num_bb = iterations;
     // Get variable screen information
     ioctl(fb_fd, FBIOGET_VSCREENINFO, &fbuff_dev->vinfo);
     fbuff_dev->vinfo.grayscale = 0;
@@ -26,11 +32,39 @@ fbuff_dev_info_t* fbuff_init() {
     fbuff_dev->fbp = mmap(0, fbuff_dev->screensize, PROT_READ | PROT_WRITE, MAP_SHARED, fb_fd, (off_t)0);
     fbuff_dev->rows = fbuff_dev->vinfo.yres / BOX_HEIGHT + !!(fbuff_dev->vinfo.yres % BOX_HEIGHT);
     fbuff_dev->cols = fbuff_dev->vinfo.xres / BOX_WIDTH + !!(fbuff_dev->vinfo.xres % BOX_WIDTH);
+
+    fbuff_dev->original = malloc(fbuff_dev->screensize);
+    memcpy(fbuff_dev->original, fbuff_dev->fbp, fbuff_dev->screensize);
+    
+    fbuff_dev->bb_array = malloc(iterations*sizeof(uint8_t*));
+    uint32_t i;
+    for (i = 0; i < iterations; i++) {
+        *(fbuff_dev->bb_array + i) = malloc(fbuff_dev->screensize);
+    }
+
+    // initialize change values
+    find_change_values(fbuff_dev);
+
+    //! ONE CHANGES BUFFER AND ONE ORIGINAL BUFFER. Back buffers are created from it, or we just write one or the other to the FBP
+    //update all buffers
+    for (i=0; i < iterations; i++) {
+        fill_back_buffer(fbuff_dev, i);
+    }
+    
     return fbuff_dev;
 }
 
-uint32_t fbuff_deinit(fbuff_dev_info_t* fbuff_dev_info) {
-    free(fbuff_dev_info);
+uint32_t fbuff_deinit(fbuff_dev_info_t* fbuff_dev) {
+    uint32_t iterations = fbuff_dev->num_bb;
+    uint32_t i;
+    for (i = 0; i < iterations; i++) {
+        INDEX_BB(fbuff_dev, i);
+    }
+    free(fbuff_dev->bb_array);
+    free(fbuff_dev->change_buffer);
+    free(fbuff_dev->original);
+
+    free(fbuff_dev);
     return 0;
 }
 
@@ -60,9 +94,9 @@ int32_t find_brightness(fbuff_dev_info_t* fbuff_dev, uint32_t* brightness_array,
     struct fb_var_screeninfo vinfo = fbuff_dev->vinfo;
     struct fb_fix_screeninfo finfo = fbuff_dev->finfo;
     uint8_t* fbp = back_buffer ? back_buffer : fbuff_dev->fbp;
-    int cols = fbuff_dev->cols;
-
-    int red, green, blue, total, color, row, column, x, y;
+    uint32_t cols = fbuff_dev->cols;
+    uint32_t row, column, x, y;
+    int red, green, blue, total, color;
     uint64_t location;
     for (y = 0; y < vinfo.yres; y++) {
         row = y / BOX_HEIGHT;
@@ -80,7 +114,23 @@ int32_t find_brightness(fbuff_dev_info_t* fbuff_dev, uint32_t* brightness_array,
     return 0;
 }
 
-int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev,uint32_t* curr_brightness, uint32_t* change) {
+void find_change_values(fbuff_dev_info_t* fbuff_dev) 
+{
+    uint32_t rows = fbuff_dev->rows;
+    uint32_t cols = fbuff_dev->cols;
+    
+    uint32_t curr_brightness[rows][cols];
+    memset(curr_brightness, 0, rows*cols*sizeof(uint32_t));
+
+    int32_t change_vals[rows][cols];
+    memset(change_vals, 0, rows*cols*sizeof(uint32_t));
+
+    find_brightness(fbuff_dev, (uint32_t*)curr_brightness, fbuff_dev->original);
+    find_brightness_changes(fbuff_dev, (uint32_t*)curr_brightness, (int32_t*)change_vals);
+    update_buffer(fbuff_dev, (int32_t*)change_vals, fbuff_dev->change_buffer);
+}
+//TODO make this in place so I dont
+int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev, uint32_t* curr_brightness, int32_t* change) {
     uint32_t row=0, column=0;
     uint32_t rows = fbuff_dev->rows;
     uint32_t cols = fbuff_dev->cols;
@@ -116,7 +166,6 @@ uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* bu
         row = y / BOX_HEIGHT;
         for (x = 0; x < vinfo.xres; x++) {
             column = x / BOX_WIDTH;
-//            uint32_t old_location = location;
             location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
             color = *((uint32_t*)(buffer + location));
             red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
@@ -157,61 +206,29 @@ uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* bu
     return 0;
 }
 
-uint32_t update_buffer_thread(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* buffer, const uint8_t* original) {
-    uint32_t row=0, column=0;
-    // uint32_t rows = fbuff_dev->rows;
-    uint32_t cols = fbuff_dev->cols;
-    struct fb_var_screeninfo vinfo = fbuff_dev->vinfo;
-    struct fb_fix_screeninfo finfo = fbuff_dev->finfo;
-    uint8_t dred, dgreen, dblue;
-    int32_t d, y, x;
-    uint32_t color, red, blue, green;
-    uint64_t location = 0;
+// uint32_t update_buffer_thread(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* buffer, const uint8_t* original) {
+//     uint32_t row=0, column=0;
+//     // uint32_t rows = fbuff_dev->rows;
+//     uint32_t cols = fbuff_dev->cols;
+//     struct fb_var_screeninfo vinfo = fbuff_dev->vinfo;
+//     struct fb_fix_screeninfo finfo = fbuff_dev->finfo;
+//     uint8_t dred, dgreen, dblue;
+//     int32_t d, y, x;
+//     uint32_t color, red, blue, green;
+//     uint64_t location = 0;
 
-    for (y = 0; y < vinfo.yres; y++) {
-        row = y / BOX_HEIGHT;
-        for (x = 0; x < vinfo.xres; x++) {
-            column = x / BOX_WIDTH;
-//            uint32_t old_location = location;
-            location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
-            color = *((uint32_t*)(original + location));
-            red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
-            blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
-            green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
-            d = *(change + row*cols + column);
-            if ((red + d) & 0x100) { // if doing change causes overflow
-                if (d < 0) {
-                    dred = -red;
-                } else {
-                    dred = 0xFF - red;
-                }
-            } else {
-                dred = d;
-            }
-            if ((green + d) & 0x100) { // if doing change causes overflow
-                if (d < 0) {
-                    dgreen = -green;
-                } else {
-                    dgreen = 0xFF - green;
-                }
-            } else {
-                dgreen = d;
-            }
-            if ((blue + d) & 0x100) { // if doing change causes overflow
-                if (d < 0) {
-                    dblue = -blue;
-                } else {
-                    dblue = 0xFF - blue;
-                }
-            } else {
-                dblue = d;
-            }
-            copy_and_change_pixel(dred, dgreen, dblue,
-                ((uint32_t*)(original + location)), ((uint32_t*)(buffer + location)), vinfo);
-        }
-    }
-    return 0;
-}
+//     for (y = 0; y < vinfo.yres; y++) {
+//         row = y / BOX_HEIGHT;
+//         for (x = 0; x < vinfo.xres; x++) {
+//             column = x / BOX_WIDTH;
+//             location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
+//             color = *((uint32_t*)(original + location));
+//             red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
+//             blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
+//             green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
+//     }
+//     return 0;
+// }
 
 
 //change all every time to be able to change while reading. 
@@ -248,19 +265,76 @@ uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t iteratio
     }
     return 0;
 }
-    
 
-void* fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
+// void fill_change_values(fbuff_dev_info_t* fbuff_dev) {
+//     // uint8_t* change = fbuff_dev->
+//     uint32_t row=0, column=0;
+//     // uint32_t rows = fbuff_dev->rows;
+//     uint32_t cols = fbuff_dev->cols;
+//     struct fb_var_screeninfo vinfo = fbuff_dev->vinfo;
+//     struct fb_fix_screeninfo finfo = fbuff_dev->finfo;
+//     uint8_t dred, dgreen, dblue;
+//     int32_t d, y, x;
+//     uint32_t color, red, blue, green;
+//     uint64_t location = 0;
+//     for (y = 0; y < vinfo.yres; y++) {
+//         row = y / BOX_HEIGHT;
+//         for (x = 0; x < vinfo.xres; x++) {
+//             column = x / BOX_WIDTH;
+//             location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
+//             color = *((uint32_t*)(original + location));
+//             red = ((0xFF << vinfo.red.offset) & color) >> vinfo.red.offset;
+//             blue = ((0xFF << vinfo.blue.offset) & color) >> vinfo.blue.offset;
+//             green = ((0xFF << vinfo.green.offset) & color) >> vinfo.green.offset;
+//             d = *(change + row*cols + column);
+//             if ((red + d) & 0x100) { // if doing change causes overflow
+//                 if (d < 0) {
+//                     dred = -red;
+//                 } else {
+//                     dred = 0xFF - red;
+//                 }
+//             } else {
+//                 dred = d;
+//             }
+//             if ((green + d) & 0x100) { // if doing change causes overflow
+//                 if (d < 0) {
+//                     dgreen = -green;
+//                 } else {
+//                     dgreen = 0xFF - green;
+//                 }
+//             } else {
+//                 dgreen = d;
+//             }
+//             if ((blue + d) & 0x100) { // if doing change causes overflow
+//                 if (d < 0) {
+//                     dblue = -blue;
+//                 } else {
+//                     dblue = 0xFF - blue;
+//                 }
+//             } else {
+//                 dblue = d;
+//             }
+//             copy_and_change_pixel(dred, dgreen, dblue,
+//                 ((uint32_t*)(original + location)), ((uint32_t*)(buffer + location)), vinfo);
+//         }
+//     }
+// }
+
+
+void* fill_back_buffer(fbuff_dev_info_t* fbuff_dev, int32_t iteration) {
     // fbuff_back_buffer_info_t* fbuff_bb = (fbuff_back_buffer_info_t*)fbuff_bb_v;
     uint32_t row=0, column=0;
-    uint32_t rows = fbuff_bb->fbuff_dev->rows;
-    uint32_t cols = fbuff_bb->fbuff_dev->cols;
+    uint32_t rows = fbuff_dev->rows;
+    uint32_t cols = fbuff_dev->cols;
     uint32_t col_split = 0;
     uint32_t row_split = 0;
     uint32_t box_row, box_col;
-    int32_t* change=fbuff_bb->change_vals;
-    int32_t* this_change = (int32_t*) malloc(rows*cols*sizeof(int32_t));
-    int32_t iteration = fbuff_bb->iteration + 1;
+    // int32_t* change=fbuff_dev->box_changes;
+    int32_t* this_change = (int32_t*) malloc(rows*cols*sizeof(int32_t)); //! remove this when i fill_by_box
+    iteration++; // ! check this part
+    int x;
+    int y;
+    uint8_t* bb_base = INDEX_BB(fbuff_dev, iteration);
 
     col_split = cols / (1 << ((iteration >> 1) + (iteration &1)));
     row_split = iteration == 1 ? rows : rows / (1 << (iteration >>1));
@@ -272,12 +346,36 @@ void* fill_back_buffer(fbuff_back_buffer_info_t* fbuff_bb) {
         for (column = 0; column < cols; column++) {
             box_col = column/col_split;
             do_i_change = ((__builtin_popcount(box_col) ^ __builtin_popcount(box_row)) & 1);
-            *(this_change + row*cols + column) = do_i_change * (*(change + row*cols + column));
+            // *(this_change + row*cols + column) = do_i_change * (*(change + row*cols + column));
+            #ifdef FILL_BY_BOX
+            uint8_t* dest;
+            uint8_t* buffer_to_use = do_i_change ? fbuff_dev->change_buffer : fbuff_dev->original;
+            uint64_t offset = 0;
+            // set box pixels to the values from the correct buffer
+            for(y = row*BOX_HEIGHT; y < (row+1)*BOX_HEIGHT; y++) {
+                for(x = column*BOX_WIDTH; x < (column+1) *BOX_WIDTH; x++) {
+                    offset = FBUFF_OFFSET(fbuff_dev, x, y);
+                    dest = bb_base + offset;
+                    *((uint32_t*) dest) = *((uint32_t*)(buffer_to_use + offset));
+                }
+            }
+            #endif
         }
     }
+    #ifdef FILL_BY_PIXEL
+    for (y = 0; y < vinfo.yres; y++) {
+        row = y / BOX_HEIGHT;
+        for (x = 0; x < vinfo.xres; x++) {
+            column = x / BOX_WIDTH;
+            location = (x + vinfo.xoffset) * (vinfo.bits_per_pixel / 8) + (y + vinfo.yoffset) * finfo.line_length;
+            color = *((uint32_t*)(original + location));
+            // fill pixel with the right one from change or original
+        }
+    }
+    #endif
     // call the update_buffer to fill the buffer
     // memcpy(fbuff_bb->back_buffer, fbuff_bb->original, fbuff_bb->fbuff_dev->screensize);
-    update_buffer_thread(fbuff_bb->fbuff_dev, this_change, fbuff_bb->back_buffer, fbuff_bb->original);
+    // update_buffer_thread(fbuff_dev, this_change, INDEX_BB(fbuff_dev, iteration)->back_buffer, fbuff_dev->original);
     free((void*)this_change);
     printf("iter %d done\n", iteration);
     return NULL;

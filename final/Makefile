@@ -1,5 +1,5 @@
-CFLAGS= -lwiringPi -lX11 -lXtst -pthread -Wall
-DEPS= src/fbuff.c
+CFLAGS= -lwiringPi -lX11 -lXtst -pthread -Wall -Wextra
+DEPS= src/fbuff.c src/cursor.c
 
 all:
 	gcc main.c $(DEPS) -o light_pen $(CFLAGS)

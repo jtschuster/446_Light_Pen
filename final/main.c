@@ -17,6 +17,7 @@
 #include <X11/extensions/XTest.h>
 
 #include "include/fbuff.h"
+#include "include/cursor.h"
 
 #define TIME
 // #define SLOW
@@ -25,7 +26,6 @@
 #define ITERATIONS 15 // gotta be odd number
 uint32_t iter = 0;
 uint32_t diffs[ITERATIONS] = {0};
-fbuff_back_buffer_info_t* bb[ITERATIONS] = {NULL};
 
 
 void signal_callback() {
@@ -35,52 +35,35 @@ void signal_callback() {
 }
 
 int main() {
-    Display *dpy;
-    Window root_window;
-    dpy = XOpenDisplay(0);
-    if (dpy==NULL) {
-        printf("DISPLAY environment variable not set");
-        return -1;
-    }
-    root_window = XRootWindow(dpy, 0);
-    XSelectInput(dpy, root_window, KeyReleaseMask);
+    // Display *dpy;
+    // Window root_window;
+    // dpy = XOpenDisplay(0);
+    // if (dpy==NULL) {
+    //     printf("DISPLAY environment variable not set");
+    //     return -1;
+    // }
+    // root_window = XRootWindow(dpy, 0);
+    // XSelectInput(dpy, root_window, KeyReleaseMask);
+    cursor_init();
+
 
     fbuff_dev_info_t* fbuff_dev = fbuff_init();
     const long screensize = fbuff_dev->screensize;
     uint8_t* fbp = fbuff_dev->fbp;
     // uint8_t* orig_tmp;
-    uint8_t* original = malloc(screensize);
-    memcpy(original, fbp, screensize);
-    // original = orig_tmp;
-    uint8_t* back_buffer = malloc(screensize);
-    pthread_t threads[ITERATIONS];
+    // uint8_t* original = malloc(screensize);
+    // memcpy(original, fbp, screensize);
+    // // original = orig_tmp;
+    // uint8_t* back_buffer = malloc(screensize);
+    // pthread_t threads[ITERATIONS];
     int rows = fbuff_dev->rows;
     int cols = fbuff_dev->cols;
-
-    // index with [x][y]
-    uint32_t curr_brightness[rows][cols];
-    memset((void*)curr_brightness, 0, rows*cols*4);
-    int32_t first_change[rows][cols];
-    int32_t change[rows][cols];
-    // int32_t last_change[rows][cols];
-
-    int it = 0;
-    for (it = 0; it < ITERATIONS; it++) {
-        bb[it] = malloc(sizeof(fbuff_back_buffer_info_t));
-        bb[it]->back_buffer = malloc(screensize);
-        bb[it]->original = original;
-        bb[it]->change_vals = (int32_t*)first_change;
-        bb[it]->iteration = it;
-        bb[it]->fbuff_dev = fbuff_dev;
-    }
-
-    memcpy(back_buffer, original, screensize);
      
 #ifdef TIME 
     clock_t begin = clock(); 
 #endif
 
-    find_brightness(fbuff_dev, (uint32_t *)curr_brightness, back_buffer);
+    // find_brightness(fbuff_dev, (uint32_t *)curr_brightness, back_buffer);
 
 #ifdef TIME 
     clock_t end = clock();
@@ -88,11 +71,11 @@ int main() {
     begin = clock();
 #endif
 
-    find_brightness_changes(fbuff_dev, (uint32_t*)curr_brightness, (uint32_t*)change);
+    // find_brightness_changes(fbuff_dev, (uint32_t*)curr_brightness, (uint32_t*)change);
     // memcpy((void*)last_change, (void*)change, rows*cols*4);
-    memcpy((void*)first_change, (void*)change, rows*cols*4);
+    // memcpy((void*)first_change, (void*)change, rows*cols*4);
 
-    pthread_create(threads, NULL, (void*)&fill_back_buffer, bb[0]);
+    // pthread_create(threads, NULL, (void*)&fill_back_buffer, bb[0]);
     // pthread_setschedprio(threads[it], 0);
     // for (it=0; it < ITERATIONS; it++) {
     //     if(pthread_create(threads+it, NULL, (void*)&fill_back_buffer, bb[it])) {
@@ -121,9 +104,6 @@ int main() {
 
     wiringPiISR(29, INT_EDGE_RISING, (void*)&signal_callback);
 
-    // digitalWrite(24, HIGH);
-    // memcpy(fbp, back_buffer, screensize);
-    // digitalWrite(24, LOW);
 
 #ifdef TIME
     end = clock();
@@ -140,15 +120,10 @@ int main() {
     // bbx->change_vals = (int32_t*)(&first_change);
     double delay = 0.0;
     begin = 0;
-    for ( ; iter < ITERATIONS; iter++) {
+    for (iter = 0 ; iter < ITERATIONS; iter++) {
         
         printf("next\n");
 
-        if (iter < ITERATIONS-1) {
-            pthread_create(threads+iter+1, NULL, (void*)&fill_back_buffer, bb[iter+1]);
-            pthread_setschedprio(threads[iter], 8);
-        }
-        pthread_join(threads[iter], NULL);
         do {
             delay = (double)(clock() - begin) / CLOCKS_PER_SEC;
         } while (delay < FRAME_DELAY);
@@ -156,7 +131,7 @@ int main() {
         printf("Did we get stalled by the thread? %f\n", delay);
 
         digitalWrite(24, HIGH);
-        memcpy(fbp, bb[iter]->back_buffer, screensize);
+        memcpy(fbp, INDEX_BB(fbuff_dev, iter), screensize);
         digitalWrite(24, LOW);
 #ifdef SLOW
         sleep(1);
@@ -172,19 +147,14 @@ int main() {
     }
     
     
-
-    memcpy(fbp, original, screensize);
-    XWarpPointer(dpy, None, root_window, 0, 0, 0, 0, cursor_x, cursor_y);
+    cursor_move(cursor_x, cursor_y);
+    // memcpy(fbp, original, screensize);
+    // XWarpPointer(dpy, None, root_window, 0, 0, 0, 0, cursor_x, cursor_y);
+    // // XFlush(dpy);
+    // XTestFakeButtonEvent(dpy, 1, True, CurrentTime);
+    // XTestFakeButtonEvent(dpy, 1, False, CurrentTime);
     // XFlush(dpy);
-    XTestFakeButtonEvent(dpy, 1, True, CurrentTime);
-    XTestFakeButtonEvent(dpy, 1, False, CurrentTime);
-    XFlush(dpy);
-    for (it=0; it < ITERATIONS; it++) {
-        free((void*)(bb[it]->back_buffer));
-        free((void*)(bb[it]));
-    }
-    free((void*)original);
-    free((void*)back_buffer);
+
     fbuff_deinit(fbuff_dev);
     return 0;
 }
