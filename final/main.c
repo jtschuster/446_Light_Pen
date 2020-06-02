@@ -47,7 +47,7 @@ int main() {
     cursor_init();
 
 
-    fbuff_dev_info_t* fbuff_dev = fbuff_init();
+    fbuff_dev_info_t* fbuff_dev = fbuff_init(ITERATIONS);
     const long screensize = fbuff_dev->screensize;
     uint8_t* fbp = fbuff_dev->fbp;
     // uint8_t* orig_tmp;
@@ -131,7 +131,7 @@ int main() {
         printf("Did we get stalled by the thread? %f\n", delay);
 
         digitalWrite(24, HIGH);
-        memcpy(fbp, INDEX_BB(fbuff_dev, iter), screensize);
+        memcpy(fbp, *(fbuff_dev->bb_array + iter), screensize);
         digitalWrite(24, LOW);
 #ifdef SLOW
         sleep(1);

@@ -1,4 +1,4 @@
-CFLAGS= -lwiringPi -lX11 -lXtst -pthread -Wall -Wextra
+CFLAGS= -lwiringPi -lX11 -lXtst -pthread -Wall -Wextra #-Wpedantic
 DEPS= src/fbuff.c src/cursor.c
 
 all:

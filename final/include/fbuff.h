@@ -47,7 +47,7 @@ uint32_t change_pixel(int32_t dr, int32_t dg, int32_t db, uint32_t* pixel, struc
 
 int32_t find_brightness(fbuff_dev_info_t* fbuff_dev, uint32_t* brightness_array, uint8_t* back_buffer);
 
-int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev,uint32_t* curr_brightness, uint32_t* change);
+int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev,uint32_t* curr_brightness, int32_t* change);
 
 uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* buffer);
 

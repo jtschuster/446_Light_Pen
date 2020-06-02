@@ -43,6 +43,7 @@ fbuff_dev_info_t* fbuff_init(uint32_t iterations) {
     }
 
     // initialize change values
+    fbuff_dev->change_buffer = malloc(fbuff_dev->screensize);
     find_change_values(fbuff_dev);
 
     //! ONE CHANGES BUFFER AND ONE ORIGINAL BUFFER. Back buffers are created from it, or we just write one or the other to the FBP
@@ -331,10 +332,10 @@ void* fill_back_buffer(fbuff_dev_info_t* fbuff_dev, int32_t iteration) {
     uint32_t box_row, box_col;
     // int32_t* change=fbuff_dev->box_changes;
     int32_t* this_change = (int32_t*) malloc(rows*cols*sizeof(int32_t)); //! remove this when i fill_by_box
-    iteration++; // ! check this part
-    int x;
-    int y;
-    uint8_t* bb_base = INDEX_BB(fbuff_dev, iteration);
+    // iteration++; // ! check this part
+    uint32_t x;
+    uint32_t y;
+    uint8_t* bb_base = *(fbuff_dev->bb_array + iteration);
 
     col_split = cols / (1 << ((iteration >> 1) + (iteration &1)));
     row_split = iteration == 1 ? rows : rows / (1 << (iteration >>1));
