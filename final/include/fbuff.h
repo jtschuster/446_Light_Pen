@@ -31,12 +31,6 @@ typedef struct fbuff_dev_info {
     uint32_t num_bb;        // number of back buffers. AKA ITERATIONS
 } fbuff_dev_info_t;
 
-
-// typedef struct fbuff_bb {
-//     uint8_t* back_buffer;   // pointer to the back buffer
-//     int32_t* change_vals;   // pointer to the change values for each box on the screen 
-// } fbuff_bb_t;
-
 fbuff_dev_info_t* fbuff_init();
 
 uint32_t fbuff_deinit(fbuff_dev_info_t* fbuff_dev_info);
@@ -54,4 +48,4 @@ uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* bu
 // uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t last_rx, int32_t* change, int32_t* last_change);
 
 // fbuff_bb should be of type  fbuff_back_buffer_info_t*
-void* fill_back_buffer(fbuff_dev_info_t* fbuff_dev, int32_t iteration);
+void fill_back_buffer(fbuff_dev_info_t* fbuff_dev, int32_t iteration);

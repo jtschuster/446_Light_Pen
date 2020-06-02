@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <pthread.h>
 #include "../include/fbuff.h"
 
 #define FILL_BY_BOX
@@ -17,7 +18,18 @@
 
 void find_change_values(fbuff_dev_info_t* fbuff_dev);
 
-fbuff_dev_info_t* fbuff_init(uint32_t iterations) {
+typedef struct fbuff_fill_bb_thread_wrapper_struct {
+    fbuff_dev_info_t* fbuff_dev;
+    uint32_t iteration;
+} fbuff_fill_bb_thread_wrapper_t;
+
+void* fbuff_fill_bb_thread_wrapper(fbuff_fill_bb_thread_wrapper_t* data);
+
+
+fbuff_dev_info_t* fbuff_init(uint32_t iterations) 
+{
+    printf("Initializing");
+    fflush(stdout);
     fbuff_dev_info_t* fbuff_dev = malloc(sizeof(fbuff_dev_info_t));
     int fb_fd = open("/dev/fb0", O_RDWR);
     fbuff_dev->num_bb = iterations;
@@ -46,12 +58,19 @@ fbuff_dev_info_t* fbuff_init(uint32_t iterations) {
     fbuff_dev->change_buffer = malloc(fbuff_dev->screensize);
     find_change_values(fbuff_dev);
 
-    //! ONE CHANGES BUFFER AND ONE ORIGINAL BUFFER. Back buffers are created from it, or we just write one or the other to the FBP
     //update all buffers
+    fbuff_fill_bb_thread_wrapper_t fbb_wrap[iterations];
+    pthread_t threads[iterations];
     for (i=0; i < iterations; i++) {
-        fill_back_buffer(fbuff_dev, i);
+        fbb_wrap[i].fbuff_dev = fbuff_dev;
+        fbb_wrap[i].iteration = i;
+        pthread_create((pthread_t*)(threads+i), NULL, (void*)fbuff_fill_bb_thread_wrapper, (void*)(((fbuff_fill_bb_thread_wrapper_t*)&fbb_wrap) + i));
     }
-    
+    for (i=0; i < iterations; i++) {
+        pthread_join(threads[i], NULL);
+    }
+    printf("\nInitialized\n");
+    fflush(stdout);
     return fbuff_dev;
 }
 
@@ -59,7 +78,7 @@ uint32_t fbuff_deinit(fbuff_dev_info_t* fbuff_dev) {
     uint32_t iterations = fbuff_dev->num_bb;
     uint32_t i;
     for (i = 0; i < iterations; i++) {
-        INDEX_BB(fbuff_dev, i);
+        free(INDEX_BB(fbuff_dev, i));
     }
     free(fbuff_dev->bb_array);
     free(fbuff_dev->change_buffer);
@@ -128,6 +147,7 @@ void find_change_values(fbuff_dev_info_t* fbuff_dev)
 
     find_brightness(fbuff_dev, (uint32_t*)curr_brightness, fbuff_dev->original);
     find_brightness_changes(fbuff_dev, (uint32_t*)curr_brightness, (int32_t*)change_vals);
+    memcpy(fbuff_dev->change_buffer, fbuff_dev->original, fbuff_dev->screensize);
     update_buffer(fbuff_dev, (int32_t*)change_vals, fbuff_dev->change_buffer);
 }
 //TODO make this in place so I dont
@@ -321,8 +341,15 @@ uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t iteratio
 //     }
 // }
 
+void* fbuff_fill_bb_thread_wrapper(fbuff_fill_bb_thread_wrapper_t* data) 
+{
+    fbuff_dev_info_t* fbuff_dev = data->fbuff_dev;
+    int32_t iteration = data->iteration;
+    fill_back_buffer(fbuff_dev, iteration);
+    return NULL;
+}
 
-void* fill_back_buffer(fbuff_dev_info_t* fbuff_dev, int32_t iteration) {
+void fill_back_buffer(fbuff_dev_info_t* fbuff_dev, int32_t iteration) {
     // fbuff_back_buffer_info_t* fbuff_bb = (fbuff_back_buffer_info_t*)fbuff_bb_v;
     uint32_t row=0, column=0;
     uint32_t rows = fbuff_dev->rows;
@@ -332,15 +359,15 @@ void* fill_back_buffer(fbuff_dev_info_t* fbuff_dev, int32_t iteration) {
     uint32_t box_row, box_col;
     // int32_t* change=fbuff_dev->box_changes;
     int32_t* this_change = (int32_t*) malloc(rows*cols*sizeof(int32_t)); //! remove this when i fill_by_box
-    // iteration++; // ! check this part
     uint32_t x;
     uint32_t y;
     uint8_t* bb_base = *(fbuff_dev->bb_array + iteration);
-
+    iteration++;
     col_split = cols / (1 << ((iteration >> 1) + (iteration &1)));
     row_split = iteration == 1 ? rows : rows / (1 << (iteration >>1));
     col_split = col_split < 2 ? 2 : col_split;
     row_split = row_split < 2 ? 2 : row_split;
+    iteration--;
     int32_t do_i_change = 0;
     for (row = 0; row < rows; row++) {
         box_row = (row / row_split);
@@ -378,6 +405,6 @@ void* fill_back_buffer(fbuff_dev_info_t* fbuff_dev, int32_t iteration) {
     // memcpy(fbuff_bb->back_buffer, fbuff_bb->original, fbuff_bb->fbuff_dev->screensize);
     // update_buffer_thread(fbuff_dev, this_change, INDEX_BB(fbuff_dev, iteration)->back_buffer, fbuff_dev->original);
     free((void*)this_change);
-    printf("iter %d done\n", iteration);
-    return NULL;
+    printf(".");
+    fflush(stdout);
 }
