@@ -31,6 +31,11 @@ typedef struct fbuff_dev_info {
     uint32_t num_bb;        // number of back buffers. AKA ITERATIONS
 } fbuff_dev_info_t;
 
+typedef struct fbuff_fill_bb_thread_wrapper_struct {
+    fbuff_dev_info_t* fbuff_dev;
+    uint32_t iteration;
+} fbuff_fill_bb_thread_wrapper_t;
+
 fbuff_dev_info_t* fbuff_init();
 
 uint32_t fbuff_deinit(fbuff_dev_info_t* fbuff_dev_info);
@@ -45,7 +50,10 @@ int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev,uint32_t* curr_brigh
 
 uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* buffer);
 
-// uint32_t update_brightness_changes(fbuff_dev_info_t* fbuff_dev, int32_t last_rx, int32_t* change, int32_t* last_change);
 
 // fbuff_bb should be of type  fbuff_back_buffer_info_t*
 void fill_back_buffer(fbuff_dev_info_t* fbuff_dev, int32_t iteration);
+
+void find_change_values(fbuff_dev_info_t* fbuff_dev);
+
+void* fbuff_fill_bb_thread_wrapper(fbuff_fill_bb_thread_wrapper_t* data);

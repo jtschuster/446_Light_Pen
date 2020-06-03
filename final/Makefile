@@ -9,3 +9,5 @@ debug:
 	gcc main.c $(DEPS) -o light_pen $(CFLAGS) -g 
 single:
 	gcc main3.c -o light_pen $(CFLAGS) -O3
+test:
+	gcc test.c $(DEPS) -o test $(CFLAGS) -O3
