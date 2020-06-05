@@ -27,8 +27,9 @@
 uint32_t iter = 0;
 uint32_t diffs[ITERATIONS] = {0};
 fbuff_dev_info_t* fbuff_dev;
-
-void signal_callback() {
+int32_t running = 0;
+void signal_callback()
+{
     printf("Change detected\n");
     if (iter < ITERATIONS){
         if (diffs[iter] == 1) printf("Got two signals for some reason\n");
@@ -76,25 +77,27 @@ int run_light_pen()
     return 0;
 }
 
+void button_callback() {
+    if (__atomic_exchange_n (&running, 1, __ATOMIC_SEQ_CST)) return;
+    run_light_pen();
+    __atomic_exchange_n (&running, 0, __ATOMIC_SEQ_CST);
+}
 
 int main() {
 
     cursor_init();
 
-
     fbuff_dev = fbuff_init(ITERATIONS);
-
 
     if (wiringPiSetup() == -1)
         return -1;
-    pinMode(29, INPUT);
-    pinMode(24, OUTPUT);
-
+    pinMode(29, INPUT); //* Signal from ADC. High when change threshold reached
+    pinMode(24, OUTPUT); //* Signal for debugging showing when an iteration begins
+    pinMode(11, INPUT); //* Signal from button to start light pen running
     wiringPiISR(29, INT_EDGE_RISING, (void*)&signal_callback);
+    wiringPiISR(11, INT_EDGE_RISING, (void*)&button_callback);
 
-    run_light_pen();
-    sleep(2);
-    run_light_pen();
+    while (1);
 
     fbuff_deinit(fbuff_dev);
     return 0;

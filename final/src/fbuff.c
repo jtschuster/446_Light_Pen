@@ -140,7 +140,8 @@ void find_change_values(fbuff_dev_info_t* fbuff_dev)
     memcpy(fbuff_dev->change_buffer, fbuff_dev->original, fbuff_dev->screensize);
     update_buffer(fbuff_dev, (int32_t*)change_vals, fbuff_dev->change_buffer);
 }
-//TODO make this in place so I dont
+
+//TODO make this in place so I dont waste space
 int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev, uint32_t* curr_brightness, int32_t* change) {
     uint32_t row=0, column=0;
     uint32_t rows = fbuff_dev->rows;
@@ -169,7 +170,8 @@ uint32_t update_buffer(fbuff_dev_info_t* fbuff_dev, int32_t* change, uint8_t* bu
     struct fb_var_screeninfo vinfo = fbuff_dev->vinfo;
     struct fb_fix_screeninfo finfo = fbuff_dev->finfo;
     uint8_t dred, dgreen, dblue;
-    int32_t d, y, x;
+    int32_t d;
+    uint32_t y, x;
     uint32_t color, red, blue, green;
     uint64_t location = 0;
 
