@@ -15,19 +15,21 @@
 #include <string.h>
 #include <time.h>
 #include <X11/extensions/XTest.h>
+#include <signal.h>
+#include <sys/time.h>
 
 #include "include/fbuff.h"
 #include "include/cursor.h"
 
 #define TIME
 // #define SLOW
-#define FRAME_DELAY 0.0500
+#define FRAME_DELAY 33333 //microseconds
 
 #define ITERATIONS 16 // gotta be odd number
 uint32_t iter = 0;
 uint32_t diffs[ITERATIONS] = {0};
 fbuff_dev_info_t* fbuff_dev;
-int32_t running = 0;
+volatile int32_t running = 1;
 void signal_callback()
 {
     printf("Change detected\n");
@@ -39,30 +41,39 @@ void signal_callback()
     }
 }
 
+void sigint_callback(int unused) {
+    running = 0;
+}
+
 int run_light_pen()
 {
     const long screensize = fbuff_dev->screensize;
     uint8_t* fbp = fbuff_dev->fbp;
-
+    struct timeval start, stop;
     int rows = fbuff_dev->rows;
     int cols = fbuff_dev->cols;
-    double delay = 0.0;
-    clock_t begin = clock();
+    uint32_t delay = 0.0;
+    signal(SIGINT, sigint_callback);
+    gettimeofday(&start, NULL);
     for (iter = 0 ; iter < ITERATIONS; iter++) {
         printf("next\n");
         digitalWrite(24, HIGH);
         memcpy(fbp, *(fbuff_dev->bb_array + iter), screensize);
         digitalWrite(24, LOW);
         do {
-            delay = (double)(clock() - begin) / CLOCKS_PER_SEC;
+            gettimeofday(&stop, NULL);
+            delay = (stop.tv_usec - start.tv_usec); 
         } while (delay < FRAME_DELAY);
-        begin = clock();
-        printf("Did we get stalled by the thread? %f\n", delay);
+        gettimeofday(&start, NULL);
+        printf("Did we get stalled by the thread? %f\n", delay / 1000000.0);
 #ifdef SLOW
         sleep(1);
 #endif
     }
-    while (clock()-begin < FRAME_DELAY);
+    while (delay < FRAME_DELAY){
+        gettimeofday(&stop, NULL);
+        delay = (stop.tv_usec - start.tv_usec); 
+    }
     int32_t cursor_x = 0;
     int32_t cursor_y = 0;
     for (int j = 0; j < ITERATIONS; j+=2) {
@@ -78,9 +89,7 @@ int run_light_pen()
 }
 
 void button_callback() {
-    if (__atomic_exchange_n (&running, 1, __ATOMIC_SEQ_CST)) return;
     run_light_pen();
-    __atomic_exchange_n (&running, 0, __ATOMIC_SEQ_CST);
 }
 
 int main() {
@@ -94,11 +103,13 @@ int main() {
     pinMode(29, INPUT); //* Signal from ADC. High when change threshold reached
     pinMode(24, OUTPUT); //* Signal for debugging showing when an iteration begins
     pinMode(11, INPUT); //* Signal from button to start light pen running
+    pullUpDnControl (11, PUD_UP);
     wiringPiISR(29, INT_EDGE_RISING, (void*)&signal_callback);
-    wiringPiISR(11, INT_EDGE_RISING, (void*)&button_callback);
+    wiringPiISR(11, INT_EDGE_FALLING, (void*)&button_callback);
 
-    while (1);
-
+    while (running);
+    
+    printf("Cleaning up");
     fbuff_deinit(fbuff_dev);
     return 0;
 }

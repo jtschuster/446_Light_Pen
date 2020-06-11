@@ -149,12 +149,12 @@ int32_t find_brightness_changes(fbuff_dev_info_t* fbuff_dev, uint32_t* curr_brig
     for (row = 0; row < rows; row++) {
         for (column = 0; column < cols; column++) {
             if (*(curr_brightness + row*cols + column) < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH / 8) {
-                *(change + row*cols + column) = 2*MIN_CHANGE;
+                *(change + row*cols + column) = 3*MIN_CHANGE;
             }
             else if (*(curr_brightness + row*cols + column) < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH / 2) {
                 *(change + row*cols + column) = MIN_CHANGE;
             } else if (*(curr_brightness + row*cols + column) < 0xFF * 3 * BOX_HEIGHT * BOX_WIDTH * 2/3){
-                *(change + row*cols + column) = MIN_CHANGE;
+                *(change + row*cols + column) = -MIN_CHANGE;
             } else {
                 *(change + row*cols + column) = -2*MIN_CHANGE;
             }
