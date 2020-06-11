@@ -157,7 +157,7 @@ int main(void) {
     // Configure 1sec Timer
     TA0CTL = TASSEL__SMCLK | ID__8 | MC__CONTINUOUS | TACLR ;//| TAIE; // SMCLK / 8, up mode, clear timer
     TA0EX0 = TAIDEX_7;                        // (SMCLK / 8) / 8 ~ 15.625 kHz. Default SMCLK: 1MHz
-    TA0CCR0 = SHORT_WAIT;                         // ~1 sec
+    TA0CCR0 = SHORT_WAIT;                         
     TA0CCR1 = ADC_DELAY;
 //    TA0CCR0 = 50000; // set the high bound to 50,000 which will give a period of 100,000 microseconds = 100ms
 //    TA0CTL |= TASSEL_2 + MC_3; // set MC=11 to set to up-down, and set TASSLE = 10 source from SMCLK
